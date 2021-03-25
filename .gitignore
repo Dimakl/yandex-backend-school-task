@@ -331,3 +331,9 @@ fabric.properties
 
 # Fully remove .idea/
 .idea/
+
+# Exclude .env for secret key safety
+yandex_service/.env
+
+# Exclude all migrations
+server/migrations/*
