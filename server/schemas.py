@@ -1,9 +1,16 @@
 from jsonschema import Draft7Validator
 
 
-def validate_schema(request):
-    validator = Draft7Validator(orders_assign_post_request)
+def validate_schema(request, schema):
+    validator = Draft7Validator(schema)
     return sorted(validator.iter_errors(request), key=lambda e: e.path)
+
+
+def get_string_error_list(errors):
+    error_list = []
+    for error in errors:
+        error_list.append(error.message + ''.join([f' in object {path}'for path in list(error.path)]))
+    return error_list
 
 
 # Schemas, converted from openapi.yaml:

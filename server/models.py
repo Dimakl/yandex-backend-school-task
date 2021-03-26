@@ -1,8 +1,10 @@
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 
+from server.utils import parse_date_pair
 
-class Courier:
+
+class Courier(models.Model):
 
     id = models.IntegerField(primary_key=True, help_text="Id курьера, переданный при его создании, уникален.")
     type = models.CharField(max_length=4, help_text="Тип курьера - из {foot, bike, car}, создавать ChoiceField"
@@ -24,8 +26,24 @@ class Courier:
                                      help_text="Список id заказов выполненных курьером. Причины выбора такой структуры "
                                                "хранения аналогичны причинам current_order_ids.")
 
+    @staticmethod
+    def get_unique_ids():
+        return Courier.objects.values_list('id', flat=True)
 
-class Order:
+    @staticmethod
+    def create_from_request(request):
+        working_hours_start = []
+        working_hours_finish = []
+        for time in request['working_hours']:
+            time_pair = parse_date_pair(time)
+            working_hours_start.append(time_pair[0])
+            working_hours_finish.append(time_pair[1])
+        Courier(id=request['courier_id'], type=request['courier_type'], regions=request['regions'],
+                working_hours_start=working_hours_start, working_hours_finish=working_hours_finish,
+                current_order_ids=[], completed_order_ids=[]).save()
+
+
+class Order(models.Model):
 
     id = models.IntegerField(primary_key=True, help_text="Id курьера, переданный при его создании, уникален.")
     weight = models.FloatField(help_text="Вес товара: число с плавающей точкой в промежутке [0.01; 50].")
@@ -42,5 +60,3 @@ class Order:
                                                             "сотые доли секунды. В формате RFC 3339.")
     delivered_time = models.CharField(max_length=30, help_text="Время доставки заказа в формате строки, дабы хранить "
                                                                "сотые доли секунды. В формате RFC 3339.")
-
-
