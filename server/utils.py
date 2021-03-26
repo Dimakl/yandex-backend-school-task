@@ -19,6 +19,25 @@ def get_request_body_in_json(request):
     return json.loads(request.body.decode('utf8'))
 
 
+def generate_time_arrays_from_request_hours(hours):
+    hours_start = []
+    hours_finish = []
+    for time in hours:
+        time_pair = parse_date_pair(time)
+        hours_start.append(time_pair[0])
+        hours_finish.append(time_pair[1])
+    return hours_start, hours_finish
+
+
+def generate_request_hours_from_time_arrays(hours_start, hours_finish):
+    hours = []
+    for i in range(len(hours_start)):
+        start = hours_start[i]
+        finish = hours_finish[i]
+        hours.append(f'{start // 60:02d}:{start % 60:02d}-{finish // 60:02d}:{finish % 60:02d}')
+    return hours
+
+
 class CouriersPostRequestHelper:
 
     @staticmethod

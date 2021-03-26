@@ -1,11 +1,10 @@
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 
-from server.utils import parse_date_pair
+from server.utils import generate_time_arrays_from_request_hours, generate_request_hours_from_time_arrays
 
 
 class Courier(models.Model):
-
     id = models.IntegerField(primary_key=True, help_text="Id курьера, переданный при его создании, уникален.")
     type = models.CharField(max_length=4, help_text="Тип курьера - из {foot, bike, car}, создавать ChoiceField"
                                                     "было бы излишне, тк при помощи json схем гарантируется что"
@@ -32,19 +31,38 @@ class Courier(models.Model):
 
     @staticmethod
     def create_from_request(request):
-        working_hours_start = []
-        working_hours_finish = []
-        for time in request['working_hours']:
-            time_pair = parse_date_pair(time)
-            working_hours_start.append(time_pair[0])
-            working_hours_finish.append(time_pair[1])
+        working_hours_start, working_hours_finish = generate_time_arrays_from_request_hours(request['working_hours'])
         Courier(id=request['courier_id'], type=request['courier_type'], regions=request['regions'],
                 working_hours_start=working_hours_start, working_hours_finish=working_hours_finish,
                 current_order_ids=[], completed_order_ids=[]).save()
 
+    @staticmethod
+    def change_and_receive_courier_data(courier_id, request):
+        courier = Courier.objects.get(id=courier_id)
+        print(request)
+        if 'regions' in request:
+            courier.regions = request['regions']
+        if 'courier_type' in request:
+            courier.type = request['courier_type']
+        if 'working_hours' in request:
+            courier.working_hours_start, courier.working_hours_finish = \
+                generate_time_arrays_from_request_hours(request['working_hours'])
+        courier.save()
+        courier.update_current_orders()
+        return courier
+
+    def get_basic_info(self):
+        return {'courier_id': self.id,
+                'courier_type': self.type,
+                'regions': self.regions,
+                'working_hours':
+                    generate_request_hours_from_time_arrays(self.working_hours_start, self.working_hours_finish)}
+
+    def update_current_orders(self):
+        pass
+
 
 class Order(models.Model):
-
     id = models.IntegerField(primary_key=True, help_text="Id курьера, переданный при его создании, уникален.")
     weight = models.FloatField(help_text="Вес товара: число с плавающей точкой в промежутке [0.01; 50].")
     region = models.IntegerField(help_text="Регион доставки заказа.")
