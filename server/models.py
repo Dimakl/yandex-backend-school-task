@@ -78,3 +78,19 @@ class Order(models.Model):
                                                             "сотые доли секунды. В формате RFC 3339.")
     delivered_time = models.CharField(max_length=30, help_text="Время доставки заказа в формате строки, дабы хранить "
                                                                "сотые доли секунды. В формате RFC 3339.")
+
+    @staticmethod
+    def get_unique_ids():
+        return Order.objects.values_list('id', flat=True)
+
+    @staticmethod
+    def create_from_request(request):
+        delivery_hours_start, delivery_hours_finish = generate_time_arrays_from_request_hours(request['delivery_hours'])
+        Order(id=request['order_id'], weight=request['weight'], region=request['region'],
+              delivery_hours_start=delivery_hours_start, delivery_hours_finish=delivery_hours_finish, assigned_to_id=-1,
+              assign_time="", delivered_time="").save()
+
+    @staticmethod
+    def weight_is_valid(weight):
+        return 0.01 <= weight <= 50
+

@@ -11,19 +11,19 @@ def couriers_post_request(request):
     body = get_request_body_in_json(request)
     errors = validate_schema(body, schemas.couriers_post_request)
     if len(errors) != 0:
-        return HttpResponseBadRequest(CouriersPostRequestHelper.process_parse_response_error(body, errors))
+        return HttpResponseBadRequest(PostRequestHelper.process_parse_response_error(body, errors, 'courier'))
     courier_ids = set(Courier.get_unique_ids())
     failed_ids = []
     for courier in body['data']:
         if courier['courier_id'] in courier_ids:
             failed_ids.append(courier['courier_id'])
     if len(failed_ids) != 0:
-        return HttpResponseBadRequest(CouriersPostRequestHelper.process_ununique_ids_error(failed_ids))
+        return HttpResponseBadRequest(PostRequestHelper.process_ununique_ids_error(failed_ids, 'courier'))
     created_ids = []
     for courier in body['data']:
         created_ids.append(courier['courier_id'])
         Courier.create_from_request(courier)
-    return HttpResponse(json.dumps(CouriersPostRequestHelper.create_courier_list_object(created_ids)))
+    return HttpResponse(json.dumps(PostRequestHelper.create_id_list_object(created_ids, 'courier')))
 
 
 def redirect_courier_request(request, courier_id):
@@ -51,4 +51,24 @@ def couriers_patch_request(request, courier_id):
     courier = Courier.change_and_receive_courier_data(courier_id, body)
     return HttpResponse(json.dumps(courier.get_basic_info()))
 
+
+def orders_post_request(request):
+    if request.method != 'POST':
+        return
+    body = get_request_body_in_json(request)
+    errors = validate_schema(body, schemas.orders_post_request)
+    default_errors = PostRequestHelper.check_for_default_post_request_errors(body, errors, Order, 'order')
+    if default_errors is not None:
+        return HttpResponseBadRequest(default_errors)
+    failed_ids = []
+    for order in body['data']:
+        if not Order.weight_is_valid(order['weight']):
+            failed_ids.append(order['order_id'])
+    if len(failed_ids) != 0:
+        return HttpResponseBadRequest(PostRequestHelper.process_weight_errors(failed_ids))
+    created_ids = []
+    for order in body['data']:
+        created_ids.append(order['order_id'])
+        Order.create_from_request(order)
+    return HttpResponse(json.dumps(PostRequestHelper.create_id_list_object(created_ids, 'order')))
 

@@ -38,37 +38,66 @@ def generate_request_hours_from_time_arrays(hours_start, hours_finish):
     return hours
 
 
-class CouriersPostRequestHelper:
+class PostRequestHelper:
 
     @staticmethod
-    def process_parse_response_error(body, errors):
+    def process_parse_response_error(body, errors, entity_name):
         error_list = get_string_error_list(errors)
-        error_couriers_id = set()
+        error_entities_id = set()
         if 'data' in body.keys():
             for error in errors:
                 path = list(error.path)
                 if len(path) != 2:
                     continue
-                if 'courier_id' in body['data'][path[1]]:
-                    error_couriers_id.add(body['data'][path[1]]['courier_id'])
+                if f'{entity_name}_id' in body['data'][path[1]]:
+                    error_entities_id.add(body['data'][path[1]][f'{entity_name}_id'])
         response = {
-            'validation_error': CouriersPostRequestHelper.create_courier_list_object(list(error_couriers_id)),
+            'validation_error': PostRequestHelper.create_id_list_object(list(error_entities_id), entity_name),
             'errors_description': error_list
         }
         return json.dumps(response)
 
     @staticmethod
-    def create_courier_list_object(error_couriers_id):
-        return {'couriers': [{'id': x} for x in error_couriers_id]}
+    def create_id_list_object(error_id, entity_name):
+        return {entity_name: [{'id': x} for x in error_id]}
 
     @staticmethod
-    def process_ununique_ids_error(failed_ids):
+    def process_ununique_ids_error(failed_ids, entity_name):
         errors_description = []
-        validation_error = CouriersPostRequestHelper.create_courier_list_object(failed_ids)
+        validation_error = PostRequestHelper.create_id_list_object(failed_ids, entity_name)
         for f_id in failed_ids:
-            errors_description.append(f"Courier id {f_id} is already in database")
+            errors_description.append(f"{f_id}: this {entity_name} id  is already in database")
         response = {
             'validation_error': validation_error,
             'errors_description': errors_description
         }
         return json.dumps(response)
+
+    @staticmethod
+    def process_weight_errors(failed_ids):
+        """
+        Здесь практически дублицируется код из process_ununique_ids_error, но их совмещение
+        приведет к некоторой путаннице, так что я решил разделить их.
+        """
+        errors_description = []
+        validation_error = PostRequestHelper.create_id_list_object(failed_ids, 'order')
+        for f_id in failed_ids:
+            errors_description.append(f"{f_id}: weight of order with this id is bigger than 50 or less than 0.01")
+        response = {
+            'validation_error': validation_error,
+            'errors_description': errors_description
+        }
+        return json.dumps(response)
+
+    @staticmethod
+    def check_for_default_post_request_errors(body, errors, entity_class, entity_name):
+        if len(errors) != 0:
+            return PostRequestHelper.process_parse_response_error(body, errors, entity_name)
+        ids = set(entity_class.get_unique_ids())
+        failed_ids = []
+        for order in body['data']:
+            if order[f'{entity_name}_id'] in ids:
+                failed_ids.append(order[f'{entity_name}_id'])
+        if len(failed_ids) != 0:
+            return PostRequestHelper.process_ununique_ids_error(failed_ids, entity_name)
+        return None
