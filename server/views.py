@@ -10,15 +10,9 @@ def couriers_post_request(request):
         return
     body = get_request_body_in_json(request)
     errors = validate_schema(body, schemas.couriers_post_request)
-    if len(errors) != 0:
-        return HttpResponseBadRequest(PostRequestHelper.process_parse_response_error(body, errors, 'courier'))
-    courier_ids = set(Courier.get_unique_ids())
-    failed_ids = []
-    for courier in body['data']:
-        if courier['courier_id'] in courier_ids:
-            failed_ids.append(courier['courier_id'])
-    if len(failed_ids) != 0:
-        return HttpResponseBadRequest(PostRequestHelper.process_ununique_ids_error(failed_ids, 'courier'))
+    default_errors = PostRequestHelper.check_for_default_post_request_errors(body, errors, Courier, 'courier')
+    if default_errors is not None:
+        return HttpResponseBadRequest(default_errors)
     created_ids = []
     for courier in body['data']:
         created_ids.append(courier['courier_id'])
