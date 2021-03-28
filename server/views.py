@@ -79,3 +79,25 @@ def orders_assign_request(request):
             {'errors_description': f'{body["courier_id"]}: this courier id does not exist in database'}))
     assigned_orders = Courier.assign_orders(body['courier_id'])
     return HttpResponse(json.dumps(assigned_orders))
+
+
+def orders_complete_request(request):
+    if request.method != 'POST':
+        return
+    body = get_request_body_in_json(request)
+    errors = validate_schema(body, schemas.orders_complete_post_request)
+    if len(errors) != 0:
+        return HttpResponseBadRequest(json.dumps({'errors_description': get_string_error_list(errors)}))
+    if body['courier_id'] not in Courier.get_unique_ids():
+        return HttpResponseBadRequest(json.dumps(
+            {'errors_description': f'{body["courier_id"]}: this courier id does not exist in database'}))
+    courier = Courier.objects.get(id=body['courier_id'])
+    # Следующая проверка нужна для выполнения идемпотентности:
+    if body['order_id'] in courier.completed_order_ids:
+        return HttpResponse(json.dumps({'order_id': body['order_id']}))
+    if body['order_id'] not in courier.current_order_ids:
+        return HttpResponseBadRequest(json.dumps(
+            {'errors_description': f'{body["order_id"]}: order with this id is '
+                                   f'not assigned to courier with id {body["courier_id"]}'}))
+    courier.complete_order(body['order_id'], body['complete_time'])
+    return HttpResponse(json.dumps({'order_id': body['order_id']}))

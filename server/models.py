@@ -26,6 +26,39 @@ class Courier(models.Model):
                                      help_text="Список id заказов выполненных курьером. Причины выбора такой структуры "
                                                "хранения аналогичны причинам current_order_ids.")
 
+    def get_basic_info(self):
+        return {'courier_id': self.id,
+                'courier_type': self.type,
+                'regions': self.regions,
+                'working_hours':
+                    generate_request_hours_from_time_arrays(self.working_hours_start, self.working_hours_finish)}
+
+    def update_current_orders(self):
+        # TODO
+        pass
+
+    def get_max_weight(self):
+        return {'foot': 10, 'bike': 15, 'car': 50}[self.type]
+
+    def complete_order(self, order_id, complete_time):
+        self.current_order_ids.remove(order_id)
+        self.completed_order_ids.append(order_id)
+        order = Order.objects.get(id=order_id)
+        order.delivered_time = complete_time
+        self.save()
+        order.save()
+
+    # TODO: add algo for optimal pick
+    def get_assignable_order_list(self, orders):
+        max_weight = self.get_max_weight() - \
+                     sum([Order.objects.get(id=order_id).weight for order_id in self.current_order_ids])
+        picked_orders = []
+        for order in orders:
+            if max_weight - order.weight >= 0:
+                picked_orders.append(order)
+                max_weight -= order.weight
+        return picked_orders
+
     @staticmethod
     def get_unique_ids():
         return Courier.objects.values_list('id', flat=True)
@@ -52,16 +85,6 @@ class Courier(models.Model):
         courier.update_current_orders()
         return courier
 
-    def get_basic_info(self):
-        return {'courier_id': self.id,
-                'courier_type': self.type,
-                'regions': self.regions,
-                'working_hours':
-                    generate_request_hours_from_time_arrays(self.working_hours_start, self.working_hours_finish)}
-
-    def update_current_orders(self):
-        pass
-
     @staticmethod
     def assign_orders(courier_id):
         courier = Courier.objects.get(id=courier_id)
@@ -83,20 +106,6 @@ class Courier(models.Model):
         courier.save()
         return {'orders': PostRequestHelper.create_id_list_object(courier.current_order_ids, 'orders')['orders'],
                 'assign_time': current_time}
-
-    # TODO: add algo for optimal pick
-    def get_assignable_order_list(self, orders):
-        max_weight = self.get_max_weight() - \
-                     sum([Order.objects.get(order_id).weight for order_id in self.current_order_ids])
-        picked_orders = []
-        for order in orders:
-            if max_weight - order.weight >= 0:
-                picked_orders.append(order)
-                max_weight -= order.weight
-        return picked_orders
-
-    def get_max_weight(self):
-        return {'foot': 10, 'bike': 15, 'car': 50}[self.type]
 
 
 class Order(models.Model):
