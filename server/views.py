@@ -28,7 +28,11 @@ def redirect_courier_request(request, courier_id):
 
 
 def couriers_get_request(request, courier_id):
-    pass
+    if courier_id not in Courier.get_unique_ids():
+        return HttpResponseBadRequest(
+            json.dumps({'errors_description': [f'Courier id {courier_id} is not in database']}))
+    courier = Courier.objects.get(id=courier_id)
+    return HttpResponse(json.dumps(courier.get_full_info()))
 
 
 def couriers_patch_request(request, courier_id):

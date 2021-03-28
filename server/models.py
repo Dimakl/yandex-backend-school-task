@@ -2,7 +2,7 @@ from datetime import datetime
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from server.utils import generate_time_arrays_from_request_hours, generate_request_hours_from_time_arrays, \
-    date_to_string, PostRequestHelper
+    date_to_string, PostRequestHelper, parse_date_rfc
 
 
 class Courier(models.Model):
@@ -32,6 +32,27 @@ class Courier(models.Model):
                 'regions': self.regions,
                 'working_hours':
                     generate_request_hours_from_time_arrays(self.working_hours_start, self.working_hours_finish)}
+
+    def get_full_info(self):
+        info = self.get_basic_info()
+        if len(self.completed_order_ids) == 0:
+            info['earnings'] = 0
+            return info
+        orders = [Order.objects.get(id=order_id) for order_id in self.completed_order_ids]
+        # region_time имеет вид:
+        # <регион:int,(сумма времен доставки этого региона в сек:int, количество заказов этого региона:int)>
+        region_time = dict()
+        earnings = 0
+        for order in orders:
+            earnings += 500 * order.get_coefficient()
+            if order.region not in region_time.keys():
+                region_time[order.region] = (0, 0)
+            prev_state = region_time[order.region]
+            region_time[order.region] = (prev_state[0] + order.get_time_difference(), prev_state[1] + 1)
+        rating_t = min(x[0] / x[1] for x in region_time.values())
+        info['rating'] = (60*60 - min(rating_t, 60*60))/(60*60) * 5
+        info['earnings'] = earnings
+        return info
 
     def update_current_orders(self):
         # TODO
@@ -100,6 +121,7 @@ class Courier(models.Model):
 
             order.assigned_to_id = courier_id
             order.assign_time = current_time
+            order.assign_type = courier.type
             new_current_orders.append(order.id)
             order.save()
         courier.current_order_ids = new_current_orders
@@ -124,21 +146,18 @@ class Order(models.Model):
                                                             "сотые доли секунды. В формате RFC 3339.")
     delivered_time = models.CharField(max_length=40, help_text="Время доставки заказа в формате строки, дабы хранить "
                                                                "сотые доли секунды. В формате RFC 3339.")
+    assign_type = models.CharField(max_length=4, default='', help_text="Тип передвижения курьера на момент присвоения "
+                                                                       "заказа, нужно для того, чтобы корректно "
+                                                                       "подсчитывать заработок курьера в 6 запросе.")
 
-    @staticmethod
-    def get_unique_ids():
-        return Order.objects.values_list('id', flat=True)
+    def get_coefficient(self):
+        return {'foot': 2, 'bike': 5, 'car': 9}[self.assign_type]
 
-    @staticmethod
-    def create_from_request(request):
-        delivery_hours_start, delivery_hours_finish = generate_time_arrays_from_request_hours(request['delivery_hours'])
-        Order(id=request['order_id'], weight=request['weight'], region=request['region'],
-              delivery_hours_start=delivery_hours_start, delivery_hours_finish=delivery_hours_finish, assigned_to_id=-1,
-              assign_time="", delivered_time="").save()
-
-    @staticmethod
-    def weight_is_valid(weight):
-        return 0.01 <= weight <= 50
+    def get_time_difference(self):
+        """
+        Случаи assign_time > delivered_time => delta = 0
+        """
+        return max(0, (parse_date_rfc(self.delivered_time) - parse_date_rfc(self.assign_time)).total_seconds())
 
     def is_time_valid(self, courier):
         if len(self.delivery_hours_start) == 0 or len(courier.working_hours_start) == 0:
@@ -154,3 +173,18 @@ class Order(models.Model):
                 courier_time_id += 1
                 pass
             # ?
+
+    @staticmethod
+    def get_unique_ids():
+        return Order.objects.values_list('id', flat=True)
+
+    @staticmethod
+    def create_from_request(request):
+        delivery_hours_start, delivery_hours_finish = generate_time_arrays_from_request_hours(request['delivery_hours'])
+        Order(id=request['order_id'], weight=request['weight'], region=request['region'],
+              delivery_hours_start=delivery_hours_start, delivery_hours_finish=delivery_hours_finish, assigned_to_id=-1,
+              assign_time="", delivered_time="").save()
+
+    @staticmethod
+    def weight_is_valid(weight):
+        return 0.01 <= weight <= 50
