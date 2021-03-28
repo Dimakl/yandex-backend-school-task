@@ -1,7 +1,8 @@
+from datetime import datetime
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
-
-from server.utils import generate_time_arrays_from_request_hours, generate_request_hours_from_time_arrays
+from server.utils import generate_time_arrays_from_request_hours, generate_request_hours_from_time_arrays, \
+    date_to_string, PostRequestHelper
 
 
 class Courier(models.Model):
@@ -61,6 +62,42 @@ class Courier(models.Model):
     def update_current_orders(self):
         pass
 
+    @staticmethod
+    def assign_orders(courier_id):
+        courier = Courier.objects.get(id=courier_id)
+        assignable_orders = []
+        for order in Order.objects.filter(assigned_to_id=-1, region__in=courier.regions):
+            # TODO: Add time validation check
+            assignable_orders.append(order)
+        new_orders = courier.get_assignable_order_list(assignable_orders)
+        current_time = date_to_string(datetime.now())
+        new_current_orders = courier.current_order_ids
+        for order in new_orders:
+            print(current_time)
+
+            order.assigned_to_id = courier_id
+            order.assign_time = current_time
+            new_current_orders.append(order.id)
+            order.save()
+        courier.current_order_ids = new_current_orders
+        courier.save()
+        return {'orders': PostRequestHelper.create_id_list_object(courier.current_order_ids, 'orders')['orders'],
+                'assign_time': current_time}
+
+    # TODO: add algo for optimal pick
+    def get_assignable_order_list(self, orders):
+        max_weight = self.get_max_weight() - \
+                     sum([Order.objects.get(order_id).weight for order_id in self.current_order_ids])
+        picked_orders = []
+        for order in orders:
+            if max_weight - order.weight >= 0:
+                picked_orders.append(order)
+                max_weight -= order.weight
+        return picked_orders
+
+    def get_max_weight(self):
+        return {'foot': 10, 'bike': 15, 'car': 50}[self.type]
+
 
 class Order(models.Model):
     id = models.IntegerField(primary_key=True, help_text="Id курьера, переданный при его создании, уникален.")
@@ -74,9 +111,9 @@ class Order(models.Model):
                                                                         "(см. delivery_hours_start)")
     assigned_to_id = models.IntegerField(default=-1, help_text="Id курьера, которому присвоен заказ. Если такого "
                                                                "курьера нет - значение поля = -1.")
-    assign_time = models.CharField(max_length=30, help_text="Время присвоения заказа в формате строки, дабы хранить "
+    assign_time = models.CharField(max_length=40, help_text="Время присвоения заказа в формате строки, дабы хранить "
                                                             "сотые доли секунды. В формате RFC 3339.")
-    delivered_time = models.CharField(max_length=30, help_text="Время доставки заказа в формате строки, дабы хранить "
+    delivered_time = models.CharField(max_length=40, help_text="Время доставки заказа в формате строки, дабы хранить "
                                                                "сотые доли секунды. В формате RFC 3339.")
 
     @staticmethod
@@ -94,3 +131,17 @@ class Order(models.Model):
     def weight_is_valid(weight):
         return 0.01 <= weight <= 50
 
+    def is_time_valid(self, courier):
+        if len(self.delivery_hours_start) == 0 or len(courier.working_hours_start) == 0:
+            return False
+        courier_time_id, order_time_id = 0, 0
+        # todo: check code
+        while courier_time_id != len(courier.working_hours_start) or \
+                order_time_id != len(self.delivery_hours_start):
+            if self.delivery_hours_finish[order_time_id] < courier.working_hours_start[courier_time_id]:
+                order_time_id += 1
+                pass
+            if courier.working_hours_finish[courier_time_id] < self.delivery_hours_start[order_time_id]:
+                courier_time_id += 1
+                pass
+            # ?

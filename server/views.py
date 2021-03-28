@@ -66,3 +66,16 @@ def orders_post_request(request):
         Order.create_from_request(order)
     return HttpResponse(json.dumps(PostRequestHelper.create_id_list_object(created_ids, 'order')))
 
+
+def orders_assign_request(request):
+    if request.method != 'POST':
+        return
+    body = get_request_body_in_json(request)
+    errors = validate_schema(body, schemas.orders_assign_post_request)
+    if len(errors) != 0:
+        return PostRequestHelper.process_parse_response_error(body, errors, 'courier')
+    if body['courier_id'] not in Courier.get_unique_ids():
+        return HttpResponseBadRequest(json.dumps(
+            {'errors_description': f'{body["courier_id"]}: this courier id does not exist in database'}))
+    assigned_orders = Courier.assign_orders(body['courier_id'])
+    return HttpResponse(json.dumps(assigned_orders))

@@ -1,11 +1,16 @@
-import datetime as dt
+import datetime
 import json
+from dateutil.parser import *
 
 from server.schemas import get_string_error_list
 
 
 def parse_date_rfc(date_string):
-    return dt.datetime.strptime(date_string, '%Y-%m-%dT%H:%M:%S.%fZ')
+    return parse(date_string)
+
+
+def date_to_string(date):
+    return date.utcnow().replace(tzinfo=datetime.timezone.utc).isoformat()
 
 
 def parse_date_pair(date_string):
@@ -20,12 +25,14 @@ def get_request_body_in_json(request):
 
 
 def generate_time_arrays_from_request_hours(hours):
+    time_array = []
+    for time in hours:
+        time_array.append(parse_date_pair(time))
     hours_start = []
     hours_finish = []
-    for time in hours:
-        time_pair = parse_date_pair(time)
-        hours_start.append(time_pair[0])
-        hours_finish.append(time_pair[1])
+    for item in sorted(time_array):
+        hours_start.append(item[0])
+        hours_finish.append(item[1])
     return hours_start, hours_finish
 
 
@@ -58,15 +65,15 @@ class PostRequestHelper:
         return json.dumps(response)
 
     @staticmethod
-    def create_id_list_object(error_id, entity_name):
-        return {entity_name: [{'id': x} for x in error_id]}
+    def create_id_list_object(ids, entity_name):
+        return {entity_name: [{'id': x} for x in ids]}
 
     @staticmethod
     def process_ununique_ids_error(failed_ids, entity_name):
         errors_description = []
         validation_error = PostRequestHelper.create_id_list_object(failed_ids, entity_name)
         for f_id in failed_ids:
-            errors_description.append(f"{f_id}: this {entity_name} id  is already in database")
+            errors_description.append(f'{f_id}: this {entity_name} id already exists in database')
         response = {
             'validation_error': validation_error,
             'errors_description': errors_description
@@ -82,7 +89,7 @@ class PostRequestHelper:
         errors_description = []
         validation_error = PostRequestHelper.create_id_list_object(failed_ids, 'order')
         for f_id in failed_ids:
-            errors_description.append(f"{f_id}: weight of order with this id is bigger than 50 or less than 0.01")
+            errors_description.append(f'{f_id}: weight of order with this id is bigger than 50 or less than 0.01')
         response = {
             'validation_error': validation_error,
             'errors_description': errors_description
