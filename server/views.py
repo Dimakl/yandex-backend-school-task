@@ -7,7 +7,7 @@ from server.utils import *
 
 def couriers_post_request(request):
     if request.method != 'POST':
-        return
+        return HttpResponseBadRequest('Only POST request is allowed on this url')
     body = get_request_body_in_json(request)
     errors = validate_schema(body, schemas.couriers_post_request)
     default_errors = PostRequestHelper.check_for_default_post_request_errors(body, errors, Courier, 'courier')
@@ -25,6 +25,8 @@ def redirect_courier_request(request, courier_id):
         return couriers_get_request(request, courier_id)
     if request.method == 'PATCH':
         return couriers_patch_request(request, courier_id)
+    else:
+        return HttpResponseBadRequest('Only GET and PATCH requests are allowed on this url')
 
 
 def couriers_get_request(request, courier_id):
@@ -52,7 +54,7 @@ def couriers_patch_request(request, courier_id):
 
 def orders_post_request(request):
     if request.method != 'POST':
-        return
+        return HttpResponseBadRequest('Only POST request is allowed on this url')
     body = get_request_body_in_json(request)
     errors = validate_schema(body, schemas.orders_post_request)
     default_errors = PostRequestHelper.check_for_default_post_request_errors(body, errors, Order, 'order')
@@ -73,7 +75,7 @@ def orders_post_request(request):
 
 def orders_assign_request(request):
     if request.method != 'POST':
-        return
+        return HttpResponseBadRequest('Only POST request is allowed on this url')
     body = get_request_body_in_json(request)
     errors = validate_schema(body, schemas.orders_assign_post_request)
     if len(errors) != 0:
@@ -87,7 +89,7 @@ def orders_assign_request(request):
 
 def orders_complete_request(request):
     if request.method != 'POST':
-        return
+        return HttpResponseBadRequest('Only POST request is allowed on this url')
     body = get_request_body_in_json(request)
     errors = validate_schema(body, schemas.orders_complete_post_request)
     if len(errors) != 0:
