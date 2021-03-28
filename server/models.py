@@ -111,8 +111,8 @@ class Courier(models.Model):
         courier = Courier.objects.get(id=courier_id)
         assignable_orders = []
         for order in Order.objects.filter(assigned_to_id=-1, region__in=courier.regions):
-            # TODO: Add time validation check
-            assignable_orders.append(order)
+            if order.is_time_valid(courier):
+                assignable_orders.append(order)
         new_orders = courier.get_assignable_order_list(assignable_orders)
         current_time = date_to_string(datetime.now())
         new_current_orders = courier.current_order_ids
@@ -126,8 +126,10 @@ class Courier(models.Model):
             order.save()
         courier.current_order_ids = new_current_orders
         courier.save()
-        return {'orders': PostRequestHelper.create_id_list_object(courier.current_order_ids, 'orders')['orders'],
-                'assign_time': current_time}
+        response = {'orders': PostRequestHelper.create_id_list_object(courier.current_order_ids, 'orders')['orders']}
+        if len(response['orders']) != 0:
+            response['assign_time'] = current_time
+        return response
 
 
 class Order(models.Model):
@@ -163,7 +165,6 @@ class Order(models.Model):
         if len(self.delivery_hours_start) == 0 or len(courier.working_hours_start) == 0:
             return False
         courier_time_id, order_time_id = 0, 0
-        # todo: check code
         while courier_time_id != len(courier.working_hours_start) or \
                 order_time_id != len(self.delivery_hours_start):
             if self.delivery_hours_finish[order_time_id] < courier.working_hours_start[courier_time_id]:
@@ -172,7 +173,9 @@ class Order(models.Model):
             if courier.working_hours_finish[courier_time_id] < self.delivery_hours_start[order_time_id]:
                 courier_time_id += 1
                 pass
-            # ?
+            # Если 2 прошлые проверки не сработали - отрезки имеют пересечение.
+            return True
+        return False
 
     @staticmethod
     def get_unique_ids():
