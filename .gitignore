@@ -333,7 +333,7 @@ fabric.properties
 .idea/
 
 # Exclude .env for secret key safety
-.env
+# .env
 
 # Exclude all migrations
 django_project/server/migrations/*
