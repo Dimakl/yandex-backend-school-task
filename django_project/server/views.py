@@ -8,7 +8,11 @@ from server.utils import *
 def couriers_post_request(request):
     if request.method != 'POST':
         return HttpResponseBadRequest('Only POST request is allowed on this url')
-    body = get_request_body_in_json(request)
+    body = []
+    try:
+        body = get_request_body_in_json(request)
+    except:
+        return HttpResponseBadRequest('Not valid json was given')
     errors = validate_schema(body, schemas.couriers_post_request)
     default_errors = PostRequestHelper.check_for_default_post_request_errors(body, errors, Courier, 'courier')
     if default_errors is not None:
@@ -41,7 +45,11 @@ def couriers_patch_request(request, courier_id):
     """
     Принимает от 0-3 полей курьера. (0 - тоже валидное значение!)
     """
-    body = get_request_body_in_json(request)
+    body = []
+    try:
+        body = get_request_body_in_json(request)
+    except:
+        return HttpResponseBadRequest('Not valid json was given')
     errors = validate_schema(body, schemas.courier_patch_request)
     if len(errors) != 0:
         return HttpResponseBadRequest(json.dumps({'errors_description': get_string_error_list(errors)}))
@@ -55,7 +63,11 @@ def couriers_patch_request(request, courier_id):
 def orders_post_request(request):
     if request.method != 'POST':
         return HttpResponseBadRequest('Only POST request is allowed on this url')
-    body = get_request_body_in_json(request)
+    body = []
+    try:
+        body = get_request_body_in_json(request)
+    except:
+        return HttpResponseBadRequest('Not valid json was given')
     errors = validate_schema(body, schemas.orders_post_request)
     default_errors = PostRequestHelper.check_for_default_post_request_errors(body, errors, Order, 'order')
     if default_errors is not None:
@@ -76,7 +88,11 @@ def orders_post_request(request):
 def orders_assign_request(request):
     if request.method != 'POST':
         return HttpResponseBadRequest('Only POST request is allowed on this url')
-    body = get_request_body_in_json(request)
+    body = []
+    try:
+        body = get_request_body_in_json(request)
+    except:
+        return HttpResponseBadRequest('Not valid json was given')
     errors = validate_schema(body, schemas.orders_assign_post_request)
     if len(errors) != 0:
         return PostRequestHelper.process_parse_response_error(body, errors, 'courier')
@@ -90,7 +106,11 @@ def orders_assign_request(request):
 def orders_complete_request(request):
     if request.method != 'POST':
         return HttpResponseBadRequest('Only POST request is allowed on this url')
-    body = get_request_body_in_json(request)
+    body = []
+    try:
+        body = get_request_body_in_json(request)
+    except:
+        return HttpResponseBadRequest('Not valid json was given')
     errors = validate_schema(body, schemas.orders_complete_post_request)
     if len(errors) != 0:
         return HttpResponseBadRequest(json.dumps({'errors_description': get_string_error_list(errors)}))

@@ -336,7 +336,7 @@ fabric.properties
 .env
 
 # Exclude all migrations
-server/migrations/*
+django_project/server/migrations/*
 
 # Exclude VScode files
 .vs/

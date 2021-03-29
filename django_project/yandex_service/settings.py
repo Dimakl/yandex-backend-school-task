@@ -28,11 +28,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # Set DEBUG to 1 in .env in case you want to run in debug mode
-DEBUG = os.getenv('DEBUG', 0) == 1
+DEBUG = os.getenv('DEBUG', 0) == "1"
 
 ALLOWED_HOSTS = [
-    '127.0.0.1',
-    '0.0.0.0'
+    '*'
 ]
 
 
