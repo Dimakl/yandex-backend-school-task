@@ -340,3 +340,6 @@ server/migrations/*
 
 # Exclude VScode files
 .vs/
+
+# Exclude docker files
+data/
