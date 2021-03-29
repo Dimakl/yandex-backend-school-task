@@ -45,6 +45,36 @@ def generate_request_hours_from_time_arrays(hours_start, hours_finish):
     return hours
 
 
+class KnapsackSolver:
+
+    table = []
+    weights = []
+    answer = []
+
+    def solve_knapsack(self, max_weight, weights):
+        n = len(weights)
+        self.weights = weights
+        self.table = [[0 for _ in range(max_weight + 1)] for _ in range(n + 1)]
+        for i in range(n + 1):
+            for j in range(max_weight + 1):
+                if j == 0 or i == 0:
+                    self.table[i][j] = 0
+                elif weights[i - 1] <= j:
+                    self.table[i][j] = max(weights[i - 1] + self.table[i - 1][j - weights[i - 1]], self.table[i - 1][j])
+                else:
+                    self.table[i][j] = self.table[i - 1][j]
+        return self.find_ans_knapsack(n, max_weight)
+
+    def find_ans_knapsack(self, k, s):
+        if self.table[k][s] == 0:
+            return
+        if self.table[k - 1][s] == self.table[k][s]:
+            self.find_ans_knapsack(k - 1, s)
+        else:
+            self.find_ans_knapsack(k - 1, s - self.weights[k - 1])
+            self.answer.append(k - 1)
+
+
 class PostRequestHelper:
 
     @staticmethod

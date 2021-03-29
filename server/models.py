@@ -2,7 +2,7 @@ from datetime import datetime
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from server.utils import generate_time_arrays_from_request_hours, generate_request_hours_from_time_arrays, \
-    date_to_string, PostRequestHelper, parse_date_rfc
+    date_to_string, PostRequestHelper, parse_date_rfc, KnapsackSolver
 
 
 class Courier(models.Model):
@@ -69,15 +69,15 @@ class Courier(models.Model):
         self.save()
         order.save()
 
-    # TODO: add algo for optimal pick
     def get_assignable_order_list(self, orders):
         max_weight = self.get_max_weight() - \
                      sum([Order.objects.get(id=order_id).weight for order_id in self.current_order_ids])
         picked_orders = []
-        for order in orders:
-            if max_weight - order.weight >= 0:
-                picked_orders.append(order)
-                max_weight -= order.weight
+        weights = [int(order.weight * 100) for order in orders]
+        solver = KnapsackSolver()
+        solver.solve_knapsack(int(max_weight * 100), weights)
+        for index in solver.answer:
+            picked_orders.append(orders[index])
         return picked_orders
 
     @staticmethod
@@ -94,7 +94,6 @@ class Courier(models.Model):
     @staticmethod
     def change_and_receive_courier_data(courier_id, request):
         courier = Courier.objects.get(id=courier_id)
-        print(request)
         if 'regions' in request:
             courier.regions = request['regions']
         if 'courier_type' in request:
@@ -117,8 +116,6 @@ class Courier(models.Model):
         current_time = date_to_string(datetime.now())
         new_current_orders = courier.current_order_ids
         for order in new_orders:
-            print(current_time)
-
             order.assigned_to_id = courier_id
             order.assign_time = current_time
             order.assign_type = courier.type
