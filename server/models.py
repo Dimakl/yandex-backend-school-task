@@ -55,7 +55,22 @@ class Courier(models.Model):
         return info
 
     def update_current_orders(self):
-        # TODO
+        orders = [Order.objects.get(id=order_id) for order_id in self.current_order_ids]
+        weights = [int(order.weight * 100) for order in orders]
+        if sum(weights) <= self.get_max_weight() * 100:
+            return
+        solver = KnapsackSolver()
+        solver.solve_knapsack(self.get_max_weight() * 100, weights)
+        new_current_orders = []
+        for index in solver.answer:
+            new_current_orders.append(orders[index])
+        new_orders_set = set(new_current_orders)
+        for order in orders:
+            if order not in new_orders_set:
+                order.assigned_to_id = -1
+                order.save()
+        self.current_order_ids = new_current_orders
+        self.save()
         pass
 
     def get_max_weight(self):
