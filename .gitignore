@@ -333,7 +333,10 @@ fabric.properties
 .idea/
 
 # Exclude .env for secret key safety
-yandex_service/.env
+.env
 
 # Exclude all migrations
 server/migrations/*
+
+# Exclude VScode files
+.vs/
