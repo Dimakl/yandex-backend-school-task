@@ -28,7 +28,7 @@ apt install docker-ce
 ```
 
 
-Если у вас не установлен docer-compose:
+Если у вас не установлен docker-compose:
 ```
 sudo apt install jq
 
